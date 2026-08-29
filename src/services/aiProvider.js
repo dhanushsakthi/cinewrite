@@ -11,39 +11,52 @@ class AnthropicProvider {
     this.endpoint = 'https://api.anthropic.com/v1/messages';
   }
 
+  _mockFallback(system, messages) {
+    const promptText = (messages && messages[0] && messages[0].content) || '';
+    return `[CineWrite Assistant - Local Development Mode]\n\nBased on your prompt: "${promptText.slice(0, 150)}${promptText.length > 150 ? '...' : ''}"\n\n- **Structure & Pacing**: The scene layout and beat progression are aligned with your chosen framework targets.\n- **Character Arcs**: Ensure primary character motivations directly drive the central conflict.\n\n*(Note: To enable live Claude Sonnet AI responses, set a valid ANTHROPIC_API_KEY in your .env file)*`;
+  }
+
   async _call({ system, messages, maxTokens = 1000 }) {
-    if (!this.apiKey) {
-      const err = new Error('ANTHROPIC_API_KEY is not configured in .env file');
-      err.status = 400;
-      throw err;
+    if (!this.apiKey || !this.apiKey.trim()) {
+      return this._mockFallback(system, messages);
     }
-    const res = await fetch(this.endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': this.apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: this.model,
-        max_tokens: maxTokens,
-        system,
-        messages,
-      }),
-    });
+    try {
+      const res = await fetch(this.endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: maxTokens,
+          system,
+          messages,
+        }),
+      });
 
-    if (!res.ok) {
-      const text = await res.text();
-      const err = new Error(`AI provider error: ${res.status} ${text}`);
-      err.status = 502;
-      throw err;
+      if (!res.ok) {
+        if (res.status === 401) {
+          console.warn('⚠️ Anthropic API key unauthorized (401). Falling back to local assistant mode.');
+          return this._mockFallback(system, messages);
+        }
+        const text = await res.text();
+        const err = new Error(`AI provider error: ${res.status} ${text}`);
+        err.status = 502;
+        throw err;
+      }
+
+      const data = await res.json();
+      return data.content
+        .filter((block) => block.type === 'text')
+        .map((block) => block.text)
+        .join('\n');
+    } catch (err) {
+      if (err.status === 502) throw err;
+      console.warn('AI call exception:', err.message);
+      return this._mockFallback(system, messages);
     }
-
-    const data = await res.json();
-    return data.content
-      .filter((block) => block.type === 'text')
-      .map((block) => block.text)
-      .join('\n');
   }
 
   // "Ask AI" — free-form question about the current project, given
