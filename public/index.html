@@ -436,9 +436,13 @@ function toggleAuthMode() {
     : 'New here? <a onclick="toggleAuthMode()">Create an account</a>';
 }
 
-function showAuthError(msg) {
+function showAuthError(msg, html = null) {
   const box = document.getElementById('authError');
-  box.textContent = msg;
+  if (html) {
+    box.innerHTML = html;
+  } else {
+    box.textContent = msg;
+  }
   box.style.display = 'block';
 }
 
@@ -449,7 +453,14 @@ async function handleRegister() {
     const password = document.getElementById('regPassword').value;
     const data = await api('/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password }) });
     onAuthSuccess(data);
-  } catch (e) { showAuthError(e.message); }
+  } catch (e) {
+    if (e.message && e.message.includes('already exists')) {
+      const email = document.getElementById('regEmail').value;
+      showAuthError(null, `An account with this email already exists. <a onclick="toggleAuthMode(); document.getElementById('loginEmail').value='${escapeHtml(email)}';" style="color:var(--accent); text-decoration:underline; cursor:pointer;">Sign in here</a>`);
+    } else {
+      showAuthError(e.message);
+    }
+  }
 }
 
 async function handleLogin() {
