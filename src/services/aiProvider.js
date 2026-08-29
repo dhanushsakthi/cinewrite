@@ -12,6 +12,11 @@ class AnthropicProvider {
   }
 
   async _call({ system, messages, maxTokens = 1000 }) {
+    if (!this.apiKey) {
+      const err = new Error('ANTHROPIC_API_KEY is not configured in .env file');
+      err.status = 400;
+      throw err;
+    }
     const res = await fetch(this.endpoint, {
       method: 'POST',
       headers: {

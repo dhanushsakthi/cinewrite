@@ -3,10 +3,10 @@
 // (and future logging/observability hooks — see spec section 56) stays
 // in one place.
 function errorHandler(err, req, res, next) { // eslint-disable-line no-unused-vars
-  console.error(err);
+  console.error('[SERVER ERROR]', err);
 
   const status = err.status || 500;
-  const message = status === 500 ? 'Internal server error' : err.message;
+  const message = err.message || 'Internal server error';
 
   res.status(status).json({ error: message });
 }
