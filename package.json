@@ -1,0 +1,26 @@
+{
+  "name": "cinewrite-ai-backend",
+  "version": "0.1.0",
+  "description": "CineWrite AI — Phase 1 backend (core writing: projects, structure, scenes, characters, basic AI assistant)",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:init": "psql \"$DATABASE_URL\" -f db/schema.sql",
+    "test": "jest --runInBand"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.12.0",
+    "pg-mem": "^3.0.14"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2",
+    "supertest": "^7.2.2"
+  }
+}

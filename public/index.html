@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CineWrite AI</title>
+<style>
+  :root {
+    --bg: #12100e;
+    --bg-panel: #1a1714;
+    --bg-card: #201c18;
+    --line: #322c26;
+    --ink: #ece6dd;
+    --ink-dim: #8f887d;
+    --accent: #c9a15a;   /* aged brass — film-reel / archive feel */
+    --accent-dim: #7a6739;
+    --danger: #b5573f;
+    --ok: #6f9a6f;
+    --warn: #c98a4a;
+    --mono: 'JetBrains Mono', 'Courier New', monospace;
+    --serif: 'Courier Prime', 'Courier New', monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+  }
+  .app { display: flex; min-height: 100vh; }
+
+  /* ---------- Sidebar (the "reel") ---------- */
+  .sidebar {
+    width: 240px;
+    background: var(--bg-panel);
+    border-right: 1px solid var(--line);
+    padding: 24px 0;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .brand {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 16px;
+  }
+  .brand .mark { color: var(--accent); font-family: var(--mono); font-size: 11px; letter-spacing: 3px; }
+  .brand h1 { font-size: 18px; margin: 4px 0 0; font-weight: 600; letter-spacing: 0.3px; }
+  .nav-item {
+    padding: 10px 20px;
+    color: var(--ink-dim);
+    cursor: pointer;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+    border-left: 2px solid transparent;
+  }
+  .nav-item:hover { color: var(--ink); background: rgba(255,255,255,0.02); }
+  .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(201,161,90,0.06); }
+  .sidebar-footer { margin-top: auto; padding: 16px 20px 0; border-top: 1px solid var(--line); font-size: 11px; color: var(--ink-dim); }
+
+  /* ---------- Main ---------- */
+  .main { flex: 1; padding: 32px 40px; max-width: 1000px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  h2.title { font-size: 22px; margin: 0 0 4px; font-weight: 600; }
+  .subtitle { color: var(--ink-dim); font-size: 13px; margin-bottom: 28px; }
+
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card h3 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+
+  label { display: block; font-size: 12px; color: var(--ink-dim); margin: 10px 0 4px; }
+  input, textarea, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: var(--ink);
+    padding: 9px 10px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent-dim); }
+  textarea { resize: vertical; min-height: 70px; font-family: var(--serif); line-height: 1.5; }
+
+  button {
+    background: var(--accent);
+    color: #1a1508;
+    border: none;
+    border-radius: 4px;
+    padding: 9px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 12px;
+  }
+  button:hover { background: #d8ae67; }
+  button.secondary { background: transparent; color: var(--ink-dim); border: 1px solid var(--line); }
+  button.secondary:hover { color: var(--ink); border-color: var(--ink-dim); }
+  button.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 160px; }
+
+  .error-box { background: rgba(181,87,63,0.12); border: 1px solid var(--danger); color: #e8b7a9; padding: 10px 14px; border-radius: 4px; font-size: 13px; margin-bottom: 16px; display: none; }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--ink-dim); }
+  .empty-state .glyph { font-size: 32px; margin-bottom: 12px; opacity: 0.5; }
+
+  /* Project list */
+  .project-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 16px; border: 1px solid var(--line); border-radius: 6px;
+    margin-bottom: 10px; cursor: pointer; background: var(--bg-card);
+  }
+  .project-item:hover { border-color: var(--accent-dim); }
+  .project-item .meta { font-size: 12px; color: var(--ink-dim); margin-top: 3px; }
+  .badge { font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(201,161,90,0.12); color: var(--accent); }
+
+  /* Beats / pacing */
+  .act-block { margin-bottom: 20px; }
+  .act-block > h4 { font-size: 13px; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+  .beat-row {
+    display: grid; grid-template-columns: 1fr 90px 90px 140px; gap: 10px; align-items: center;
+    padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 13px;
+  }
+  .beat-row.header { color: var(--ink-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .status-pill { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-family: var(--mono); }
+  .status-on_target { background: rgba(111,154,111,0.15); color: var(--ok); }
+  .status-potentially_delayed, .status-potentially_early { background: rgba(201,138,74,0.15); color: var(--warn); }
+  .status-not_yet_placed { background: rgba(255,255,255,0.05); color: var(--ink-dim); }
+
+  .progress-track { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  .progress-fill { height: 100%; background: var(--accent); }
+
+  /* Scene cards */
+  .scene-card { border-left: 3px solid var(--accent-dim); }
+  .scene-heading { font-family: var(--serif); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .scene-body { font-family: var(--serif); font-size: 13px; color: var(--ink-dim); white-space: pre-wrap; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+  .tab { padding: 8px 16px; font-size: 13px; color: var(--ink-dim); cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .center-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
+  .auth-card { width: 360px; }
+  .auth-toggle { text-align: center; font-size: 12px; color: var(--ink-dim); margin-top: 14px; }
+  .auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div id="authScreen" class="center-screen">
+  <div class="card auth-card">
+    <div class="brand" style="border:none; padding:0; margin-bottom:20px;">
+      <div class="mark">CINEWRITE AI</div>
+      <h1>Story Development Studio</h1>
+    </div>
+    <div id="authError" class="error-box"></div>
+    <div id="loginFields">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••">
+      <button onclick="handleLogin()" style="width:100%">Sign in</button>
+    </div>
+    <div id="registerFields" style="display:none">
+      <label>Name</label>
+      <input type="text" id="regName" placeholder="Your name">
+      <label>Email</label>
+      <input type="email" id="regEmail" placeholder="you@example.com">
+      <label>Password</label>
+      <input type="password" id="regPassword" placeholder="At least 8 characters">
+      <button onclick="handleRegister()" style="width:100%">Create account</button>
+    </div>
+    <div class="auth-toggle">
+      <span id="toggleText">New here? <a onclick="toggleAuthMode()">Create an account</a></span>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="appShell" style="display:none">
+  <div class="sidebar">
+    <div class="brand">
+      <div class="mark">CINEWRITE AI</div>
+      <h1>Writing Room</h1>
+    </div>
+    <div class="nav-item active" data-screen="projects" onclick="showScreen('projects')">My Movies</div>
+    <div class="nav-item" data-screen="project-detail" onclick="showScreen('project-detail')">Current Project</div>
+    <div class="sidebar-footer">
+      Signed in as <span id="userEmail"></span><br>
+      <a href="#" onclick="logout(); return false;" style="color:var(--ink-dim)">Sign out</a>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- PROJECTS LIST -->
+    <div class="screen active" id="screen-projects">
+      <h2 class="title">My Movies</h2>
+      <div class="subtitle">Every screenplay you're developing, from idea to final draft.</div>
+
+      <div class="card">
+        <h3>Create Your First Film</h3>
+        <div class="row">
+          <div><label>Title</label><input id="npTitle" placeholder="Untitled Thriller"></div>
+          <div><label>Genre</label><input id="npGenre" placeholder="Psychological Crime Thriller"></div>
+        </div>
+        <div class="row">
+          <div><label>Theme</label><input id="npTheme" placeholder="Guilt / Identity / Truth"></div>
+          <div><label>Target runtime (minutes)</label><input id="npRuntime" type="number" placeholder="100"></div>
+        </div>
+        <label>Logline</label>
+        <textarea id="npLogline" placeholder="A police officer investigating a murder slowly discovers he may be connected to the crime."></textarea>
+        <button onclick="createProject()">Create Project</button>
+      </div>
+
+      <div id="projectsList"></div>
+    </div>
+
+    <!-- PROJECT DETAIL -->
+    <div class="screen" id="screen-project-detail">
+      <div id="noProjectSelected" class="empty-state">
+        <div class="glyph">🎬</div>
+        Select a movie from "My Movies" to start developing it.
+      </div>
+
+      <div id="projectDetailContent" style="display:none">
+        <h2 class="title" id="pdTitle">—</h2>
+        <div class="subtitle" id="pdSubtitle">—</div>
+
+        <div class="tabs">
+          <div class="tab active" data-tab="structure" onclick="showTab('structure')">Structure</div>
+          <div class="tab" data-tab="scenes" onclick="showTab('scenes')">Scenes</div>
+          <div class="tab" data-tab="characters" onclick="showTab('characters')">Characters</div>
+          <div class="tab" data-tab="pacing" onclick="showTab('pacing')">Pacing</div>
+          <div class="tab" data-tab="setups" onclick="showTab('setups')">Setup/Payoff</div>
+          <div class="tab" data-tab="analysis" onclick="showTab('analysis')">Story Analyzer</div>
+          <div class="tab" data-tab="versions" onclick="showTab('versions')">Versions</div>
+          <div class="tab" data-tab="search" onclick="showTab('search')">Search</div>
+          <div class="tab" data-tab="ai" onclick="showTab('ai')">Ask AI</div>
+        </div>
+
+        <!-- STRUCTURE TAB (Story Development → Story Structure + Beat Sheet) -->
+        <div class="tab-panel" id="tab-structure">
+          <div id="structureEmpty" class="card">
+            <h3>Choose Your Story Structure</h3>
+            <div class="subtitle" style="margin-bottom:8px">Pick one whole-story structure, optionally add a beat sheet, and optionally add a scene-level method — combine as a hybrid, or pick just one.</div>
+            <div id="frameworkPicker"></div>
+            <div class="row" style="margin-top:14px">
+              <button onclick="generateStructure()">Generate Beat Sheet</button>
+              <button class="secondary" onclick="showCustomStructureBuilder()" style="margin-top:12px">+ Create Custom Structure</button>
+            </div>
+          </div>
+          <div id="customStructureBuilder" class="card" style="display:none">
+            <h3>Create Custom Structure</h3>
+            <div class="subtitle" style="margin-bottom:8px">e.g. a Tamil Commercial Cinema Structure with your own beats.</div>
+            <label>Structure name</label>
+            <input id="customStructureName" placeholder="Tamil Commercial Cinema Structure">
+            <label>Beats (one per line: Name | Purpose | Target % of runtime)</label>
+            <textarea id="customStructureBeats" style="min-height:140px" placeholder="Hero Introduction | Establish the hero's charisma | 5
+World Establishment | Establish setting and stakes | 12
+Interval Block | Major mid-film cliffhanger | 50
+Climax | Final confrontation | 90"></textarea>
+            <div class="row">
+              <button onclick="saveCustomStructure()">Save Structure</button>
+              <button class="secondary" onclick="document.getElementById('customStructureBuilder').style.display='none'" style="margin-top:12px">Cancel</button>
+            </div>
+          </div>
+          <div id="structureContent"></div>
+        </div>
+
+        <!-- LEARN MODAL -->
+        <div id="learnModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; align-items:center; justify-content:center;">
+          <div class="card" style="max-width:560px; width:90%; max-height:80vh; overflow-y:auto;">
+            <div id="learnModalContent">Loading…</div>
+            <button class="secondary" onclick="closeLearnModal()" style="width:100%">Close</button>
+          </div>
+        </div>
+
+        <!-- SCENES TAB -->
+        <div class="tab-panel" id="tab-scenes" style="display:none">
+          <div class="card">
+            <h3>Write a Scene</h3>
+            <div class="row">
+              <div><label>Act</label><select id="sceneAct"></select></div>
+              <div><label>Beat (optional)</label><select id="sceneBeat"></select></div>
+            </div>
+            <label>Scene Heading</label>
+            <input id="sceneHeading" placeholder="INT. POLICE STATION - NIGHT">
+            <label>Action / Dialogue</label>
+            <textarea id="sceneContent" placeholder="Detective Ray finds his own badge number in the case file."></textarea>
+            <div class="row">
+              <div><label>Page count</label><input id="scenePages" type="number" step="0.5" placeholder="2"></div>
+              <div><label>Conflict</label><input id="sceneConflict" placeholder="Ray realizes he may be a suspect"></div>
+            </div>
+            <button onclick="createScene()">Add Scene</button>
+          </div>
+          <div id="scenesList"></div>
+        </div>
+
+        <!-- CHARACTERS TAB -->
+        <div class="tab-panel" id="tab-characters" style="display:none">
+          <div class="card">
+            <h3>Add a Character</h3>
+            <div class="row">
+              <div><label>Name</label><input id="charName" placeholder="Detective Ray Solano"></div>
+              <div><label>Goal</label><input id="charGoal" placeholder="Solve the murder"></div>
+            </div>
+            <div class="row">
+              <div><label>Flaw</label><input id="charFlaw" placeholder="Represses guilt"></div>
+              <div><label>Secret</label><input id="charSecret" placeholder="Was at the scene that night"></div>
+            </div>
+            <button onclick="createCharacter()">Add Character</button>
+          </div>
+          <div id="charactersList"></div>
+        </div>
+
+        <!-- PACING TAB -->
+        <div class="tab-panel" id="tab-pacing" style="display:none">
+          <div id="pacingContent"></div>
+        </div>
+
+        <!-- SETUP/PAYOFF TAB -->
+        <div class="tab-panel" id="tab-setups" style="display:none">
+          <div class="card">
+            <h3>Track a Setup</h3>
+            <label>Description</label>
+            <input id="setupDescription" placeholder="Ray's badge number appears in the suspect log">
+            <label>Expected payoff</label>
+            <input id="setupExpectedPayoff" placeholder="Reveal Ray was at the scene">
+            <button onclick="createSetup()">Add Setup</button>
+          </div>
+          <div id="setupsList"></div>
+        </div>
+
+        <!-- STORY ANALYZER TAB -->
+        <div class="tab-panel" id="tab-analysis" style="display:none">
+          <div class="card">
+            <h3>Story Health</h3>
+            <div class="subtitle" style="margin-bottom:12px">AI-derived diagnostic estimates, not guaranteed audience reactions. Requires ANTHROPIC_API_KEY.</div>
+            <div class="row">
+              <input id="analysisDraftLabel" placeholder="Draft label (optional, e.g. Draft 2)">
+              <button onclick="runAnalysis()" style="margin-top:0">Run Analysis</button>
+            </div>
+          </div>
+          <div id="analysisContent"></div>
+        </div>
+
+        <!-- VERSIONS TAB -->
+        <div class="tab-panel" id="tab-versions" style="display:none">
+          <div class="card">
+            <h3>Save a Draft Snapshot</h3>
+            <div class="row">
+              <input id="versionLabel" placeholder="Draft 1">
+              <button onclick="createVersionSnapshot()" style="margin-top:0">Snapshot</button>
+            </div>
+          </div>
+          <div id="versionsList"></div>
+          <div class="card" id="versionCompareCard" style="display:none">
+            <h3>Compare</h3>
+            <div class="row">
+              <div><label>From</label><select id="compareFrom"></select></div>
+              <div><label>To</label><select id="compareTo"></select></div>
+            </div>
+            <button onclick="compareVersions()">Compare</button>
+            <div id="compareResult"></div>
+          </div>
+        </div>
+
+        <!-- SEARCH TAB -->
+        <div class="tab-panel" id="tab-search" style="display:none">
+          <div class="card">
+            <h3>Search This Project</h3>
+            <div class="subtitle" style="margin-bottom:12px">Semantic search over scenes. Uses a local fallback embedding unless VOYAGE_API_KEY is set, so results may be approximate.</div>
+            <div class="row">
+              <input id="searchQuery" placeholder="Where did I establish the father's secret?">
+              <button onclick="runSearch()" style="margin-top:0">Search</button>
+            </div>
+          </div>
+          <div id="searchResults"></div>
+        </div>
+
+        <!-- AI TAB -->
+        <div class="tab-panel" id="tab-ai" style="display:none">
+          <div class="card">
+            <h3>Ask AI</h3>
+            <div class="subtitle" style="margin-bottom:12px">The assistant only sees this project's own title, genre, logline, characters and beats — nothing else.</div>
+            <textarea id="aiQuestion" placeholder="Where should I introduce the antagonist given my current beats?"></textarea>
+            <button onclick="askAI()">Ask</button>
+          </div>
+          <div id="aiAnswer"></div>
+        </div>
+      </div>
+    </div>
+
+
+  </div>
+</div>
+
+<script>
+const API = '';
+let token = localStorage.getItem('cinewrite_token') || null;
+let currentUser = JSON.parse(localStorage.getItem('cinewrite_user') || 'null');
+let currentProject = null;
+let isRegisterMode = false;
+
+function api(path, opts = {}) {
+  return fetch(API + path, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: 'Bearer ' + token } : {}),
+      ...(opts.headers || {}),
+    },
+  }).then(async (res) => {
+    const data = res.status === 204 ? null : await res.json();
+    if (!res.ok) throw new Error(data?.error || 'Request failed');
+    return data;
+  });
+}
+
+function toggleAuthMode() {
+  isRegisterMode = !isRegisterMode;
+  document.getElementById('loginFields').style.display = isRegisterMode ? 'none' : 'block';
+  document.getElementById('registerFields').style.display = isRegisterMode ? 'block' : 'none';
+  document.getElementById('toggleText').innerHTML = isRegisterMode
+    ? 'Already have an account? <a onclick="toggleAuthMode()">Sign in</a>'
+    : 'New here? <a onclick="toggleAuthMode()">Create an account</a>';
+}
+
+function showAuthError(msg) {
+  const box = document.getElementById('authError');
+  box.textContent = msg;
+  box.style.display = 'block';
+}
+
+async function handleRegister() {
+  try {
+    const name = document.getElementById('regName').value;
+    const email = document.getElementById('regEmail').value;
+    const password = document.getElementById('regPassword').value;
+    const data = await api('/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password }) });
+    onAuthSuccess(data);
+  } catch (e) { showAuthError(e.message); }
+}
+
+async function handleLogin() {
+  try {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+    onAuthSuccess(data);
+  } catch (e) { showAuthError(e.message); }
+}
+
+function onAuthSuccess(data) {
+  token = data.token;
+  currentUser = data.user;
+  localStorage.setItem('cinewrite_token', token);
+  localStorage.setItem('cinewrite_user', JSON.stringify(currentUser));
+  enterApp();
+}
+
+function logout() {
+  token = null; currentUser = null;
+  localStorage.removeItem('cinewrite_token');
+  localStorage.removeItem('cinewrite_user');
+  document.getElementById('appShell').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'flex';
+}
+
+function enterApp() {
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('appShell').style.display = 'flex';
+  document.getElementById('userEmail').textContent = currentUser.email;
+  loadProjects();
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.screen === name));
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  document.getElementById('tab-' + name).style.display = 'block';
+  if (name === 'pacing') loadPacing();
+  if (name === 'setups') loadSetups();
+  if (name === 'analysis') loadAnalysis();
+  if (name === 'versions') loadVersions();
+}
+
+// ---------- Projects ----------
+async function loadProjects() {
+  const projects = await api('/projects');
+  const list = document.getElementById('projectsList');
+  if (projects.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="glyph">📽️</div>No movies yet. Create your first one above.</div>';
+    return;
+  }
+  list.innerHTML = projects.map(p => `
+    <div class="project-item" onclick="openProject('${p.id}')">
+      <div>
+        <strong>${escapeHtml(p.title)}</strong>
+        <div class="meta">${escapeHtml(p.genre || 'No genre set')} · ${p.target_pages ? p.target_pages + ' pages target' : 'No page target'}</div>
+      </div>
+      <span class="badge">${p.target_runtime_minutes ? p.target_runtime_minutes + ' min' : 'draft'}</span>
+    </div>
+  `).join('');
+}
+
+async function createProject() {
+  const body = {
+    title: document.getElementById('npTitle').value || 'Untitled Project',
+    genre: document.getElementById('npGenre').value || null,
+    theme: document.getElementById('npTheme').value || null,
+    logline: document.getElementById('npLogline').value || null,
+    target_runtime_minutes: Number(document.getElementById('npRuntime').value) || null,
+  };
+  const project = await api('/projects', { method: 'POST', body: JSON.stringify(body) });
+  document.getElementById('npTitle').value = '';
+  document.getElementById('npGenre').value = '';
+  document.getElementById('npTheme').value = '';
+  document.getElementById('npLogline').value = '';
+  document.getElementById('npRuntime').value = '';
+  await loadProjects();
+  openProject(project.id);
+}
+
+async function openProject(id) {
+  currentProject = await api('/projects/' + id);
+  document.getElementById('noProjectSelected').style.display = 'none';
+  document.getElementById('projectDetailContent').style.display = 'block';
+  document.getElementById('pdTitle').textContent = currentProject.title;
+  document.getElementById('pdSubtitle').textContent = [currentProject.genre, currentProject.theme, currentProject.target_pages ? currentProject.target_pages + 'pg target' : null].filter(Boolean).join(' · ') || 'No details set yet';
+  showScreen('project-detail');
+  showTab('structure');
+  await loadStructure();
+  await loadCharacters();
+  await loadScenes();
+}
+
+// ---------- Structure ----------
+let availableFrameworks = [];
+
+async function loadFrameworkPicker() {
+  if (availableFrameworks.length === 0) {
+    availableFrameworks = await api('/frameworks');
+  }
+  const categories = {
+    whole_story_structure: 'Whole Story Structures',
+    beat_sheet: 'Beat Sheets',
+    scene_level: 'Scene-Level Methods',
+  };
+  const grouped = {};
+  availableFrameworks.forEach(f => { (grouped[f.category] ||= []).push(f); });
+
+  const customStructures = await api('/custom-structures');
+
+  const picker = document.getElementById('frameworkPicker');
+  picker.innerHTML = Object.entries(categories).map(([catKey, catLabel]) => `
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px; color:var(--accent); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">${catLabel}</div>
+      ${(grouped[catKey] || []).map(f => `
+        <label style="display:flex; align-items:center; gap:8px; flex-direction:row; padding:4px 0;">
+          <input type="checkbox" class="fw-checkbox" data-key="${f.key}" data-category="${catKey}" style="width:auto">
+          ${escapeHtml(f.name)}
+          <a onclick="event.preventDefault(); openLearnModal('${f.key}', '${escapeHtml(f.acts_first_beat || '')}')" style="margin-left:auto; font-size:11px; color:var(--ink-dim); cursor:pointer;">Learn structure</a>
+        </label>
+      `).join('')}
+      ${catKey === 'beat_sheet' && customStructures.length ? customStructures.map(cs => `
+        <label style="display:flex; align-items:center; gap:8px; flex-direction:row; padding:4px 0;">
+          <input type="checkbox" class="fw-checkbox" data-key="user:${cs.id}" data-category="beat_sheet" style="width:auto">
+          ${escapeHtml(cs.name)} <span class="badge" style="margin-left:6px">custom</span>
+        </label>
+      `).join('') : ''}
+    </div>
+  `).join('');
+}
+
+function showCustomStructureBuilder() {
+  document.getElementById('customStructureBuilder').style.display = 'block';
+}
+
+async function saveCustomStructure() {
+  const name = document.getElementById('customStructureName').value;
+  const lines = document.getElementById('customStructureBeats').value.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!name || lines.length === 0) return alert('Give the structure a name and at least one beat.');
+
+  const beats = lines.map(line => {
+    const [beatName, purpose, pct] = line.split('|').map(s => (s || '').trim());
+    return { name: beatName, purpose: purpose || null, target_percentage: pct ? Number(pct) : null };
+  });
+
+  await api('/custom-structures', {
+    method: 'POST',
+    body: JSON.stringify({ name, acts: [{ name: 'Custom Beats', beats }] }),
+  });
+  document.getElementById('customStructureBuilder').style.display = 'none';
+  document.getElementById('customStructureName').value = '';
+  document.getElementById('customStructureBeats').value = '';
+  availableFrameworks = []; // force reload including new custom structure
+  await loadFrameworkPicker();
+}
+
+async function generateStructure() {
+  const checked = [...document.querySelectorAll('.fw-checkbox:checked')];
+  if (checked.length === 0) return alert('Pick at least one structure.');
+
+  const frameworkKeys = checked.map(c => c.dataset.key);
+  const layers = {};
+  checked.forEach(c => {
+    const layerName = c.dataset.category === 'whole_story_structure' ? 'primary_structure'
+      : c.dataset.category === 'beat_sheet' ? 'beat_sheet' : 'scene_method';
+    layers[c.dataset.key] = layerName;
+  });
+
+  try {
+    await api(`/projects/${currentProject.id}/structure/generate`, { method: 'POST', body: JSON.stringify({ frameworkKeys, layers }) });
+  } catch (e) {
+    if (!e.message.includes('already has structure')) return alert(e.message);
+  }
+  await loadStructure();
+}
+
+async function loadStructure() {
+  const acts = await api(`/projects/${currentProject.id}/structure`);
+  const emptyBox = document.getElementById('structureEmpty');
+  const content = document.getElementById('structureContent');
+
+  if (acts.length === 0) {
+    emptyBox.style.display = 'block';
+    content.innerHTML = '';
+    populateActSelect([]);
+    await loadFrameworkPicker();
+    return;
+  }
+  emptyBox.style.display = 'none';
+
+  content.innerHTML = acts.map(act => `
+    <div class="act-block">
+      <h4>${escapeHtml(act.name)}</h4>
+      <div class="beat-row header"><div>Beat</div><div>Target pg</div><div>Actual pg</div><div>Status</div></div>
+      ${act.beats.map(b => `
+        <div class="beat-row" style="grid-template-columns: 1fr 90px 90px 100px 120px;">
+          <div>${escapeHtml(b.name)}</div>
+          <div>${b.target_page ?? '—'}</div>
+          <div>${b.actual_page ?? '—'}</div>
+          <div><span class="status-pill status-${b.status}">${b.status.replace(/_/g,' ')}</span></div>
+          <div><a onclick="openLearnModal('${escapeHtml(currentFrameworkKeyGuess)}', '${escapeHtml(b.name)}')" style="color:var(--accent); cursor:pointer; font-size:12px;">Learn</a></div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  populateActSelect(acts);
+}
+
+// Best-effort guess at which framework key a beat belongs to, since the
+// structure endpoint returns flattened acts/beats without the original
+// framework key attached. Falls back to trying save-the-cat then three-act,
+// which covers the two frameworks with full structured learning content.
+let currentFrameworkKeyGuess = 'save-the-cat';
+
+async function openLearnModal(frameworkKey, stageName) {
+  if (!stageName) { alert('Pick a specific beat to learn about.'); return; }
+  const overlay = document.getElementById('learnModalOverlay');
+  const content = document.getElementById('learnModalContent');
+  overlay.style.display = 'flex';
+  content.innerHTML = 'Loading…';
+
+  let data;
+  try {
+    data = await api(`/learn/${encodeURIComponent(frameworkKey)}/${encodeURIComponent(stageName)}`);
+  } catch (e) {
+    // Fall back to three-act if save-the-cat guess was wrong, or vice versa
+    try {
+      const altKey = frameworkKey === 'save-the-cat' ? 'three-act' : 'save-the-cat';
+      data = await api(`/learn/${encodeURIComponent(altKey)}/${encodeURIComponent(stageName)}`);
+      frameworkKey = altKey;
+    } catch (e2) {
+      content.innerHTML = `<div class="error-box" style="display:block">${escapeHtml(e2.message)}</div>`;
+      return;
+    }
+  }
+
+  if (data.source === 'verified_content') {
+    content.innerHTML = `
+      <h2 class="title">${escapeHtml(data.stageName)}</h2>
+      <div class="subtitle">${escapeHtml(data.frameworkName)}</div>
+      <h3 style="margin-top:16px">What is it?</h3><p>${escapeHtml(data.definition)}</p>
+      <h3>Why does it matter?</h3><p>${escapeHtml(data.purpose)}</p>
+      <h3>What usually happens here?</h3><p>${escapeHtml(data.typical_function)}</p>
+      <h3>Questions to ask</h3><ul>${data.writer_questions.map(q => `<li>${escapeHtml(q)}</li>`).join('')}</ul>
+      <h3>Common mistakes</h3><ul>${data.common_mistakes.map(m => `<li>${escapeHtml(m)}</li>`).join('')}</ul>
+      ${data.example ? `<h3>Example</h3><p style="font-style:italic">${escapeHtml(data.example)}</p>` : ''}
+      ${data.relation_notes ? `<h3>Connection</h3><p>${escapeHtml(data.relation_notes)}</p>` : ''}
+      <button onclick="applyLearnToStory('${escapeHtml(frameworkKey)}','${escapeHtml(data.stageName)}')" style="width:100%">Apply to My Story</button>
+      <div id="applyToStoryResult"></div>
+    `;
+  } else {
+    content.innerHTML = `
+      <h2 class="title">${escapeHtml(data.stageName)}</h2>
+      <div class="subtitle">${escapeHtml(data.frameworkName)} — AI-generated explanation</div>
+      <div style="white-space:pre-wrap; margin-top:12px;">${escapeHtml(data.explanation)}</div>
+      <button onclick="applyLearnToStory('${escapeHtml(frameworkKey)}','${escapeHtml(data.stageName)}')" style="width:100%">Apply to My Story</button>
+      <div id="applyToStoryResult"></div>
+    `;
+  }
+}
+
+async function applyLearnToStory(frameworkKey, stageName) {
+  const box = document.getElementById('applyToStoryResult');
+  box.innerHTML = '<div style="margin-top:12px">Thinking about your specific story…</div>';
+  try {
+    const data = await api(`/projects/${currentProject.id}/learn/${encodeURIComponent(frameworkKey)}/${encodeURIComponent(stageName)}/apply`, { method: 'POST' });
+    box.innerHTML = `<div style="margin-top:12px; white-space:pre-wrap; border-top:1px solid var(--line); padding-top:12px;">${escapeHtml(data.suggestion)}</div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="error-box" style="display:block; margin-top:12px;">${escapeHtml(e.message)}${e.message.includes('AI provider') ? ' — set ANTHROPIC_API_KEY in .env to enable this.' : ''}</div>`;
+  }
+}
+
+function closeLearnModal() {
+  document.getElementById('learnModalOverlay').style.display = 'none';
+}
+
+
+function populateActSelect(acts) {
+  const actSelect = document.getElementById('sceneAct');
+  const beatSelect = document.getElementById('sceneBeat');
+  actSelect.innerHTML = acts.map(a => `<option value="${a.id}">${escapeHtml(a.name)}</option>`).join('') || '<option value="">Generate structure first</option>';
+  actSelect.onchange = () => {
+    const act = acts.find(a => a.id === actSelect.value);
+    beatSelect.innerHTML = '<option value="">No specific beat</option>' + (act ? act.beats.map(b => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('') : '');
+  };
+  actSelect.onchange();
+}
+
+// ---------- Scenes ----------
+async function createScene() {
+  const actId = document.getElementById('sceneAct').value;
+  if (!actId) return alert('Generate a structure first so scenes have an act to belong to.');
+  const body = {
+    act_id: actId,
+    beat_id: document.getElementById('sceneBeat').value || null,
+    heading: document.getElementById('sceneHeading').value || null,
+    content: document.getElementById('sceneContent').value || null,
+    page_count: Number(document.getElementById('scenePages').value) || 0,
+    conflict: document.getElementById('sceneConflict').value || null,
+  };
+  await api(`/projects/${currentProject.id}/scenes`, { method: 'POST', body: JSON.stringify(body) });
+  document.getElementById('sceneHeading').value = '';
+  document.getElementById('sceneContent').value = '';
+  document.getElementById('scenePages').value = '';
+  document.getElementById('sceneConflict').value = '';
+  await loadScenes();
+  await loadStructure(); // beat actual_page may have changed
+}
+
+async function loadScenes() {
+  const scenes = await api(`/projects/${currentProject.id}/scenes`);
+  const list = document.getElementById('scenesList');
+  if (scenes.length === 0) {
+    list.innerHTML = '<div class="empty-state">No scenes written yet.</div>';
+    return;
+  }
+  list.innerHTML = scenes.map(s => `
+    <div class="card scene-card">
+      <div class="scene-heading">Scene ${s.scene_number}${s.heading ? ' — ' + escapeHtml(s.heading) : ''}</div>
+      ${s.content ? `<div class="scene-body">${escapeHtml(s.content)}</div>` : ''}
+      <div class="meta" style="margin-top:8px; font-size:12px; color:var(--ink-dim)">
+        ${s.page_count ? s.page_count + ' pages' : ''} ${s.conflict ? '· Conflict: ' + escapeHtml(s.conflict) : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ---------- Characters ----------
+async function createCharacter() {
+  const body = {
+    name: document.getElementById('charName').value,
+    goal: document.getElementById('charGoal').value || null,
+    flaw: document.getElementById('charFlaw').value || null,
+    secret: document.getElementById('charSecret').value || null,
+  };
+  if (!body.name) return alert('Character needs a name.');
+  await api(`/projects/${currentProject.id}/characters`, { method: 'POST', body: JSON.stringify(body) });
+  document.getElementById('charName').value = '';
+  document.getElementById('charGoal').value = '';
+  document.getElementById('charFlaw').value = '';
+  document.getElementById('charSecret').value = '';
+  await loadCharacters();
+}
+
+async function loadCharacters() {
+  const chars = await api(`/projects/${currentProject.id}/characters`);
+  const list = document.getElementById('charactersList');
+  if (chars.length === 0) {
+    list.innerHTML = '<div class="empty-state">No characters yet.</div>';
+    return;
+  }
+  list.innerHTML = chars.map(c => `
+    <div class="card">
+      <h3>${escapeHtml(c.name)}</h3>
+      <div class="meta">
+        ${c.goal ? 'Goal: ' + escapeHtml(c.goal) + '<br>' : ''}
+        ${c.flaw ? 'Flaw: ' + escapeHtml(c.flaw) + '<br>' : ''}
+        ${c.secret ? 'Secret: ' + escapeHtml(c.secret) : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ---------- Pacing ----------
+async function loadPacing() {
+  const p = await api(`/projects/${currentProject.id}/pacing`);
+  const box = document.getElementById('pacingContent');
+  box.innerHTML = `
+    <div class="card">
+      <h3>Progress</h3>
+      <div>${p.currentPages} / ${p.targetPages ?? '?'} pages ${p.percentComplete != null ? '(' + p.percentComplete + '%)' : ''}</div>
+      <div class="progress-track"><div class="progress-fill" style="width:${p.percentComplete ?? 0}%"></div></div>
+    </div>
+    <div class="card">
+      <h3>Beat Pacing</h3>
+      <div class="beat-row header"><div>Beat</div><div>Target pg</div><div>Actual pg</div><div>Status</div></div>
+      ${p.beats.map(b => `
+        <div class="beat-row">
+          <div>${escapeHtml(b.name)}</div>
+          <div>${b.target_page ?? '—'}</div>
+          <div>${b.actual_page ?? '—'}</div>
+          <div><span class="status-pill status-${b.status}">${b.status.replace(/_/g,' ')}${b.deviationPages ? ' (' + (b.deviationPages > 0 ? '+' : '') + b.deviationPages + ')' : ''}</span></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ---------- Setup/Payoff ----------
+async function createSetup() {
+  const description = document.getElementById('setupDescription').value;
+  const expected_payoff = document.getElementById('setupExpectedPayoff').value || null;
+  if (!description) return alert('Description is required.');
+  await api(`/projects/${currentProject.id}/setups`, { method: 'POST', body: JSON.stringify({ description, expected_payoff }) });
+  document.getElementById('setupDescription').value = '';
+  document.getElementById('setupExpectedPayoff').value = '';
+  await loadSetups();
+}
+
+async function loadSetups() {
+  const setups = await api(`/projects/${currentProject.id}/setups`);
+  const list = document.getElementById('setupsList');
+  if (setups.length === 0) {
+    list.innerHTML = '<div class="empty-state">No setups tracked yet.</div>';
+    return;
+  }
+  const statusColors = { unresolved: 'warn', partially_resolved: 'warn', resolved: 'ok', unnecessary: 'ink-dim' };
+  list.innerHTML = setups.map(s => `
+    <div class="card">
+      <h3>${escapeHtml(s.description)}</h3>
+      <div class="meta">${s.expected_payoff ? 'Expected payoff: ' + escapeHtml(s.expected_payoff) + '<br>' : ''}</div>
+      <div class="row" style="align-items:center; margin-top:8px;">
+        <span class="status-pill" style="background:rgba(255,255,255,0.05)">${s.status.replace(/_/g,' ')}</span>
+        <select onchange="updateSetupStatus('${s.id}', this.value)" style="max-width:200px">
+          <option value="">Change status…</option>
+          <option value="unresolved">Unresolved</option>
+          <option value="partially_resolved">Partially resolved</option>
+          <option value="resolved">Resolved</option>
+          <option value="unnecessary">Unnecessary</option>
+        </select>
+        <button class="danger" style="margin-top:0" onclick="deleteSetup('${s.id}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function updateSetupStatus(id, status) {
+  if (!status) return;
+  await api(`/projects/${currentProject.id}/setups/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
+  await loadSetups();
+}
+
+async function deleteSetup(id) {
+  await api(`/projects/${currentProject.id}/setups/${id}`, { method: 'DELETE' });
+  await loadSetups();
+}
+
+// ---------- Story Analyzer ----------
+async function runAnalysis() {
+  const draftLabel = document.getElementById('analysisDraftLabel').value || undefined;
+  const box = document.getElementById('analysisContent');
+  box.innerHTML = '<div class="card">Analyzing across all dimensions — this calls the AI once per dimension, so it may take a moment…</div>';
+  try {
+    await api(`/projects/${currentProject.id}/analysis/run`, { method: 'POST', body: JSON.stringify({ draftLabel }) });
+    await loadAnalysis();
+  } catch (e) {
+    box.innerHTML = `<div class="error-box" style="display:block">${escapeHtml(e.message)}${e.message.includes('api-key') || e.message.includes('AI provider') ? ' — set ANTHROPIC_API_KEY in .env to enable this.' : ''}</div>`;
+  }
+}
+
+async function loadAnalysis() {
+  const data = await api(`/projects/${currentProject.id}/analysis`);
+  const box = document.getElementById('analysisContent');
+  if (data.dashboard.every(d => d.score == null)) {
+    box.innerHTML = '<div class="empty-state">No analysis run yet for this project.</div>';
+    return;
+  }
+  box.innerHTML = `
+    <div class="card">
+      <h3>Story Health</h3>
+      ${data.dashboard.map(d => `
+        <div style="margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;">
+            <span>${escapeHtml(d.category.replace(/_/g,' '))}</span>
+            <span>${d.score != null ? d.score + '%' : 'Not analyzed'}</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width:${d.score ?? 0}%"></div></div>
+          ${d.explanation ? `<div class="meta" style="margin-top:4px; font-size:12px;">${escapeHtml(d.explanation.slice(0,240))}${d.explanation.length > 240 ? '…' : ''}</div>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ---------- Versions ----------
+async function createVersionSnapshot() {
+  const label = document.getElementById('versionLabel').value;
+  if (!label) return alert('Give this draft a label, e.g. "Draft 1".');
+  await api(`/projects/${currentProject.id}/versions`, { method: 'POST', body: JSON.stringify({ label }) });
+  document.getElementById('versionLabel').value = '';
+  await loadVersions();
+}
+
+async function loadVersions() {
+  const versions = await api(`/projects/${currentProject.id}/versions`);
+  const list = document.getElementById('versionsList');
+  const compareCard = document.getElementById('versionCompareCard');
+
+  if (versions.length === 0) {
+    list.innerHTML = '<div class="empty-state">No draft snapshots yet.</div>';
+    compareCard.style.display = 'none';
+    return;
+  }
+  list.innerHTML = `<div class="card"><h3>Draft History</h3>${versions.map(v => `
+    <div class="meta" style="padding:6px 0; border-bottom:1px solid var(--line)">${escapeHtml(v.label)} — ${new Date(v.created_at).toLocaleString()}</div>
+  `).join('')}</div>`;
+
+  if (versions.length >= 2) {
+    compareCard.style.display = 'block';
+    const opts = versions.map(v => `<option value="${v.id}">${escapeHtml(v.label)}</option>`).join('');
+    document.getElementById('compareFrom').innerHTML = opts;
+    document.getElementById('compareTo').innerHTML = opts;
+    document.getElementById('compareTo').selectedIndex = versions.length - 1;
+  } else {
+    compareCard.style.display = 'none';
+  }
+}
+
+async function compareVersions() {
+  const from = document.getElementById('compareFrom').value;
+  const to = document.getElementById('compareTo').value;
+  const data = await api(`/projects/${currentProject.id}/versions/compare?from=${from}&to=${to}`);
+  document.getElementById('compareResult').innerHTML = `
+    <div style="margin-top:12px">
+      <div class="meta">${escapeHtml(data.from.label)}: ${data.from.totalPages} pages → ${escapeHtml(data.to.label)}: ${data.to.totalPages} pages</div>
+      <div style="margin-top:8px"><strong>Added (${data.added.length}):</strong> ${data.added.map(s => escapeHtml(s.heading || 'Scene ' + s.scene_number)).join(', ') || 'none'}</div>
+      <div><strong>Removed (${data.removed.length}):</strong> ${data.removed.map(s => escapeHtml(s.heading || 'Scene ' + s.scene_number)).join(', ') || 'none'}</div>
+      <div><strong>Changed (${data.changed.length}):</strong> ${data.changed.map(s => escapeHtml(s.heading || 'Scene ' + s.scene_number)).join(', ') || 'none'}</div>
+    </div>
+  `;
+}
+
+// ---------- Search ----------
+async function runSearch() {
+  const q = document.getElementById('searchQuery').value;
+  if (!q) return;
+  const box = document.getElementById('searchResults');
+  box.innerHTML = '<div class="card">Searching…</div>';
+  const data = await api(`/projects/${currentProject.id}/search?q=${encodeURIComponent(q)}`);
+  if (data.results.length === 0) {
+    box.innerHTML = '<div class="empty-state">No matching scenes found. Scenes are indexed automatically when you write them with content.</div>';
+    return;
+  }
+  box.innerHTML = data.results.map(r => `
+    <div class="card scene-card">
+      <div class="scene-heading">Scene ${r.scene_number}${r.heading ? ' — ' + escapeHtml(r.heading) : ''}</div>
+      <div class="scene-body">${escapeHtml(r.content || '')}</div>
+      <div class="meta" style="margin-top:6px">Relevance: ${(r.similarity * 100).toFixed(0)}%</div>
+    </div>
+  `).join('');
+}
+
+// ---------- AI ----------
+async function askAI() {
+  const question = document.getElementById('aiQuestion').value;
+  if (!question) return;
+  const box = document.getElementById('aiAnswer');
+  box.innerHTML = '<div class="card">Thinking…</div>';
+  try {
+    const data = await api(`/projects/${currentProject.id}/ai/ask`, { method: 'POST', body: JSON.stringify({ question }) });
+    box.innerHTML = `<div class="card"><h3>Answer</h3><div style="white-space:pre-wrap">${escapeHtml(data.answer)}</div></div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="error-box" style="display:block">${escapeHtml(e.message)} — set ANTHROPIC_API_KEY in .env to enable this.</div>`;
+  }
+}
+
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+// ---------- Boot ----------
+if (token && currentUser) enterApp();
+</script>
+</body>
+</html>

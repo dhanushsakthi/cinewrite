@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cinewrite
+      POSTGRES_PASSWORD: cinewrite_dev_pw
+      POSTGRES_DB: cinewrite
+    ports:
+      - "5432:5432"
+    volumes:
+      - cinewrite_pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
+      - ./db/migrations/002_phase2_phase4_additions.sql:/docker-entrypoint-initdb.d/2-migration.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cinewrite"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgres://cinewrite:cinewrite_dev_pw@db:5432/cinewrite
+      JWT_SECRET: ${JWT_SECRET:-change_this_dev_secret}
+      JWT_EXPIRES_IN: 7d
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: claude-sonnet-4-6
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
+      OMDB_API_KEY: ${OMDB_API_KEY:-}
+    ports:
+      - "4000:4000"
+
+volumes:
+  cinewrite_pgdata:
