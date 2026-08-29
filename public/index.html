@@ -150,6 +150,97 @@
   .auth-card { width: 360px; }
   .auth-toggle { text-align: center; font-size: 12px; color: var(--ink-dim); margin-top: 14px; }
   .auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: none; }
+
+  /* Mobile Top Navigation Header */
+  .mobile-header {
+    display: none;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 16px;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+  }
+  .mobile-brand {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--accent);
+    letter-spacing: 1px;
+    font-family: var(--mono);
+  }
+  .menu-btn {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    padding: 6px 12px;
+    font-size: 13px;
+    border-radius: 4px;
+    margin-top: 0;
+  }
+
+  /* Responsive Rules for Mobile, Tablet & Desktop Screens */
+  @media (max-width: 768px) {
+    .app {
+      flex-direction: column;
+    }
+    .mobile-header {
+      display: flex;
+    }
+    .sidebar {
+      width: 100%;
+      display: none;
+      border-right: none;
+      border-bottom: 1px solid var(--line);
+      padding: 16px 0;
+    }
+    .sidebar.open {
+      display: flex;
+    }
+    .main {
+      padding: 16px 12px;
+      max-width: 100%;
+    }
+    .tabs {
+      overflow-x: auto;
+      white-space: nowrap;
+      flex-wrap: nowrap;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 4px;
+    }
+    .tab {
+      flex-shrink: 0;
+      padding: 10px 14px;
+    }
+    .act-block {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .beat-row {
+      min-width: 500px;
+    }
+    .center-screen {
+      padding: 16px;
+    }
+    .auth-card {
+      width: 100%;
+      max-width: 380px;
+      padding: 20px 16px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .row > * {
+      min-width: 100%;
+    }
+    input, select, textarea, button {
+      font-size: 14px;
+    }
+    button {
+      padding: 11px 18px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -197,6 +288,10 @@
 </div>
 
 <div class="app" id="appShell" style="display:none">
+  <div class="mobile-header">
+    <div class="mobile-brand">🎬 CINEWRITE AI</div>
+    <button type="button" class="menu-btn" onclick="toggleMobileMenu()">☰ Menu</button>
+  </div>
   <div class="sidebar">
     <div class="brand">
       <div class="mark">CINEWRITE AI</div>
@@ -533,10 +628,17 @@ function enterApp() {
   loadProjects();
 }
 
+function toggleMobileMenu() {
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar) sidebar.classList.toggle('open');
+}
+
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.screen === name));
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar) sidebar.classList.remove('open');
 }
 
 function showTab(name) {
