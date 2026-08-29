@@ -161,21 +161,24 @@
       <h1>Story Development Studio</h1>
     </div>
     <div id="authError" class="error-box"></div>
-    <div id="loginFields">
+    <form id="loginFields" onsubmit="event.preventDefault(); handleLogin();">
       <label>Email</label>
-      <input type="email" id="loginEmail" placeholder="you@example.com">
+      <input type="email" id="loginEmail" placeholder="you@example.com" required>
       <label>Password</label>
-      <input type="password" id="loginPassword" placeholder="••••••••">
-      <button onclick="handleLogin()" style="width:100%">Sign in</button>
-    </div>
-    <div id="registerFields" style="display:none">
+      <input type="password" id="loginPassword" placeholder="••••••••" required>
+      <button type="submit" style="width:100%">Sign in</button>
+    </form>
+    <form id="registerFields" onsubmit="event.preventDefault(); handleRegister();" style="display:none">
       <label>Name</label>
-      <input type="text" id="regName" placeholder="Your name">
+      <input type="text" id="regName" placeholder="Your name" required>
       <label>Email</label>
-      <input type="email" id="regEmail" placeholder="you@example.com">
+      <input type="email" id="regEmail" placeholder="you@example.com" required>
       <label>Password</label>
-      <input type="password" id="regPassword" placeholder="At least 8 characters">
-      <button onclick="handleRegister()" style="width:100%">Create account</button>
+      <input type="password" id="regPassword" placeholder="At least 8 characters (min 8)" required minlength="8">
+      <button type="submit" style="width:100%">Create account</button>
+    </form>
+    <div style="margin-top: 14px; text-align: center;">
+      <button type="button" class="secondary" onclick="demoLogin()" style="width:100%; margin-top:0;">⚡ Instant Demo Sign-In</button>
     </div>
     <div class="auth-toggle">
       <span id="toggleText">New here? <a onclick="toggleAuthMode()">Create an account</a></span>
@@ -456,6 +459,18 @@ async function handleLogin() {
     const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
     onAuthSuccess(data);
   } catch (e) { showAuthError(e.message); }
+}
+
+async function demoLogin() {
+  try {
+    const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email: 'demo@cinewrite.ai', password: 'password123' }) });
+    onAuthSuccess(data);
+  } catch (e) {
+    try {
+      const regData = await api('/auth/register', { method: 'POST', body: JSON.stringify({ name: 'Demo Writer', email: 'demo@cinewrite.ai', password: 'password123' }) });
+      onAuthSuccess(regData);
+    } catch (regErr) { showAuthError(regErr.message); }
+  }
 }
 
 function onAuthSuccess(data) {
