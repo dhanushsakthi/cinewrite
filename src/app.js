@@ -27,10 +27,17 @@ app.use(express.json({ limit: '2mb' }));
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Serve the writing-room frontend (public/index.html) as static files.
-// Mounted before the API routes' catch-all 404 so / and /index.html resolve
-// to the SPA while /auth, /projects, etc. still hit the API below.
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.get('/', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+});
+
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  etag: false,
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  }
+}));
 
 app.use('/auth', authRoutes);
 app.use('/frameworks', frameworksRoutes);
