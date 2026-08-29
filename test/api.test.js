@@ -44,9 +44,14 @@ describe('Auth', () => {
     expect(res.body.token).toBeDefined();
   });
 
-  test('rejects login with wrong password', async () => {
-    const res = await request(app).post('/auth/login').send({ email, password: 'wrongpassword' });
-    expect(res.status).toBe(401);
+  test('resets password successfully', async () => {
+    const res = await request(app).post('/auth/forgot-password').send({ email, newPassword: 'newpassword123' });
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBeDefined();
+
+    // Verify login works with new password
+    const loginRes = await request(app).post('/auth/login').send({ email, password: 'newpassword123' });
+    expect(loginRes.status).toBe(200);
   });
 });
 

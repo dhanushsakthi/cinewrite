@@ -66,4 +66,35 @@ async function login(req, res, next) {
   }
 }
 
-module.exports = { register, login };
+async function forgotPassword(req, res, next) {
+  try {
+    const { email, newPassword } = req.body;
+    if (!email || !newPassword) {
+      return res.status(400).json({ error: 'email and newPassword are required' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'new password must be at least 8 characters' });
+    }
+
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
+    if (!user) {
+      return res.status(404).json({ error: 'No account found with this email address' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, user.id]);
+
+    const updatedUser = { id: user.id, name: user.name, email: user.email };
+    res.json({
+      message: 'Password reset successfully',
+      user: updatedUser,
+      token: issueToken(updatedUser),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { register, login, forgotPassword };
+

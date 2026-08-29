@@ -164,7 +164,10 @@
     <form id="loginFields" onsubmit="event.preventDefault(); handleLogin();">
       <label>Email</label>
       <input type="email" id="loginEmail" placeholder="you@example.com" required>
-      <label>Password</label>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin:10px 0 4px;">
+        <label style="margin:0">Password</label>
+        <a onclick="showAuthMode('forgot')" style="font-size:12px; color:var(--accent); cursor:pointer;">Forgot password?</a>
+      </div>
       <input type="password" id="loginPassword" placeholder="••••••••" required>
       <button type="submit" style="width:100%">Sign in</button>
     </form>
@@ -177,11 +180,18 @@
       <input type="password" id="regPassword" placeholder="At least 8 characters (min 8)" required minlength="8">
       <button type="submit" style="width:100%">Create account</button>
     </form>
+    <form id="forgotFields" onsubmit="event.preventDefault(); handleForgotPassword();" style="display:none">
+      <label>Account Email</label>
+      <input type="email" id="forgotEmail" placeholder="you@example.com" required>
+      <label>New Password</label>
+      <input type="password" id="forgotNewPassword" placeholder="At least 8 characters (min 8)" required minlength="8">
+      <button type="submit" style="width:100%">Reset & Sign In</button>
+    </form>
     <div style="margin-top: 14px; text-align: center;">
       <button type="button" class="secondary" onclick="demoLogin()" style="width:100%; margin-top:0;">⚡ Instant Demo Sign-In</button>
     </div>
     <div class="auth-toggle">
-      <span id="toggleText">New here? <a onclick="toggleAuthMode()">Create an account</a></span>
+      <span id="toggleText">New here? <a onclick="showAuthMode('register')">Create an account</a></span>
     </div>
   </div>
 </div>
@@ -427,13 +437,20 @@ function api(path, opts = {}) {
   });
 }
 
-function toggleAuthMode() {
-  isRegisterMode = !isRegisterMode;
-  document.getElementById('loginFields').style.display = isRegisterMode ? 'none' : 'block';
-  document.getElementById('registerFields').style.display = isRegisterMode ? 'block' : 'none';
-  document.getElementById('toggleText').innerHTML = isRegisterMode
-    ? 'Already have an account? <a onclick="toggleAuthMode()">Sign in</a>'
-    : 'New here? <a onclick="toggleAuthMode()">Create an account</a>';
+function showAuthMode(mode) {
+  document.getElementById('authError').style.display = 'none';
+  document.getElementById('loginFields').style.display = mode === 'login' ? 'block' : 'none';
+  document.getElementById('registerFields').style.display = mode === 'register' ? 'block' : 'none';
+  document.getElementById('forgotFields').style.display = mode === 'forgot' ? 'block' : 'none';
+
+  const toggleBox = document.getElementById('toggleText');
+  if (mode === 'login') {
+    toggleBox.innerHTML = 'New here? <a onclick="showAuthMode(\'register\')">Create an account</a>';
+  } else if (mode === 'register') {
+    toggleBox.innerHTML = 'Already have an account? <a onclick="showAuthMode(\'login\')">Sign in</a>';
+  } else if (mode === 'forgot') {
+    toggleBox.innerHTML = 'Remember your password? <a onclick="showAuthMode(\'login\')">Back to Sign in</a>';
+  }
 }
 
 function showAuthError(msg, html = null) {
@@ -456,7 +473,7 @@ async function handleRegister() {
   } catch (e) {
     if (e.message && e.message.includes('already exists')) {
       const email = document.getElementById('regEmail').value;
-      showAuthError(null, `An account with this email already exists. <a onclick="toggleAuthMode(); document.getElementById('loginEmail').value='${escapeHtml(email)}';" style="color:var(--accent); text-decoration:underline; cursor:pointer;">Sign in here</a>`);
+      showAuthError(null, `An account with this email already exists. <a onclick="showAuthMode('login'); document.getElementById('loginEmail').value='${escapeHtml(email)}';" style="color:var(--accent); text-decoration:underline; cursor:pointer;">Sign in here</a>`);
     } else {
       showAuthError(e.message);
     }
@@ -468,6 +485,15 @@ async function handleLogin() {
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
     const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+    onAuthSuccess(data);
+  } catch (e) { showAuthError(e.message); }
+}
+
+async function handleForgotPassword() {
+  try {
+    const email = document.getElementById('forgotEmail').value;
+    const newPassword = document.getElementById('forgotNewPassword').value;
+    const data = await api('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email, newPassword }) });
     onAuthSuccess(data);
   } catch (e) { showAuthError(e.message); }
 }
