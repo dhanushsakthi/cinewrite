@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/db');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'cinewrite_prod_jwt_secret_9f8e7d6c5b4a';
+
 async function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -10,7 +12,7 @@ async function requireAuth(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET);
     req.user = { id: payload.sub, email: payload.email };
 
     // Ensure user exists in DB (auto-provision if DB was reset, e.g. pg-mem restart)

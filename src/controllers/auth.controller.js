@@ -2,10 +2,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/db');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'cinewrite_prod_jwt_secret_9f8e7d6c5b4a';
+
 function issueToken(user) {
   return jwt.sign(
     { sub: user.id, email: user.email },
-    process.env.JWT_SECRET,
+    JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 }
